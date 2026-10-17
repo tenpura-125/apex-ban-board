@@ -245,27 +245,37 @@
 
     <h1>APEX LEGENDS BAN/PICK BOARD</h1>
 
-    <div class="room-manager">
-       <div id="room-setup-view">
-        <!-- 💡 onclickを削除し、id="btn-create-room" を追加 -->
+<div class="room-manager">
+    <!-- 【機能②】入室の上部に簡単な説明書きを記載 -->
+    <div id="room-setup-view">
+        <div class="room-guide-text" style="font-size: 12px; color: #b9bbbe; line-height: 1.6; margin-bottom: 12px; border-left: 3px solid #ff4e4e; padding-left: 8px; text-align: left;">
+            ※ <strong>新しく部屋を作る</strong>と、自分だけがBAN操作を行える「マスター」になります。<br>
+            ※ 友達の部屋に<strong>パスワードを入力して入る</strong>と、一緒にBAN操作が可能です。<br>
+            ※ 部屋番号だけを入力し、<strong>パスワードを空欄で入る</strong>と「観戦専用（閲覧のみ）」として入室できます。
+        </div>
+
         <button class="room-btn" type="button" id="btn-create-room">新しい部屋を作る</button>
         <span style="margin: 0 10px; color: #555;">または</span>
         <input type="text" id="join-room-id" placeholder="部屋番号 (1-9999)">
         <input type="password" id="join-room-pass" placeholder="パスワード">
-        <!-- 💡 onclickを削除し、id="btn-join-room" を追加 -->
         <button class="room-btn" type="button" id="btn-join-room">部屋に入る</button>
-       </div>
-
-       <div id="room-active-view" style="display: none;">
-        現在の部屋: <span id="current-room-display" style="color: #ff4e4e; font-weight: bold; margin-right: 15px;">-</span>
-        <span id="master-password-area" style="display: none; margin-right: 15px;">
-            パスワード: <span id="current-pass-display" style="color: #ffb84d; font-weight: bold;">-</span>
-        </span>
-        権限: <span id="current-role-display" style="font-weight: bold;">閲覧専用</span>
-       </div>
     </div>
 
-    <div id="error-message-area" style="color: #ff4d4d; font-weight: bold; margin: 10px 0; min-height: 20px;"></div>
+    <!-- 【機能①】部屋に入った後の画面（戻るボタンを追加） -->
+    <div id="room-active-view" style="display: none; align-items: center; justify-content: space-between; background: #1a1a1a; padding: 10px; border-radius: 6px;">
+        <div>
+            現在の部屋: <span id="current-room-display" style="color: #ff4e4e; font-weight: bold; margin-right: 15px;">-</span>
+            <span id="master-password-area" style="display: none; margin-right: 15px;">
+                パスワード: <span id="current-pass-display" style="color: #ffb84d; font-weight: bold;">-</span>
+            </span>
+            権限: <span id="current-role-display" style="font-weight: bold;">閲覧専用</span>
+        </div>
+        <!-- 💡 戻る（退室）用のボタンを設置 -->
+        <button class="room-btn" type="button" id="btn-leave-room" style="background-color: #4f545c; font-size: 11px; padding: 4px 10px; margin-left: 10px;">部屋を出る</button>
+    </div>
+</div>
+
+<div id="error-message-area" style="color: #ff4d4d; font-weight: bold; margin: 10px 0; min-height: 20px;"></div>
         
     <!-- 現在のBAN数表示エリア -->
     <div class="ban-counter">
@@ -376,16 +386,15 @@
 
    // ページが読み込まれたら一度だけ実行
     document.addEventListener("DOMContentLoaded", function() {
-        // 1. すべてのキャラクターカードにクリックのスイッチを付与
+        // (1〜4の処理はそのまま維持)
         const cards = document.querySelectorAll('.character-card');
         cards.forEach(function(card) {
             card.addEventListener('click', function(e) {
-                e.preventDefault(); // Discord内の予期せぬ誤動作を防止
+                e.preventDefault();
                 toggleBan(this);
             }, false);
         });
 
-        // 2. リセットボタンにスイッチを付与
         const resetBtn = document.getElementById('reset-btn');
         if (resetBtn) {
             resetBtn.addEventListener('click', function(e) {
@@ -394,16 +403,14 @@
             }, false);
         }
 
-        // 3. 💡 新しい部屋を作るボタンに安全なスイッチを付与（Discord CSP対策）
         const createRoomBtn = document.getElementById('btn-create-room');
         if (createRoomBtn) {
             createRoomBtn.addEventListener('click', function(e) {
-                e.preventDefault(); // ボタン押下によるiframe内のリロードやバグを完全に防止
+                e.preventDefault();
                 createRoom();
             }, false);
         }
 
-        // 4. 💡 部屋に入るボタンに安全なスイッチを付与（Discord CSP対策）
         const joinRoomBtn = document.getElementById('btn-join-room');
         if (joinRoomBtn) {
             joinRoomBtn.addEventListener('click', function(e) {
@@ -412,7 +419,15 @@
             }, false);
         }
 
-        // 自動的にサーバーへ接続を開始
+        // 💡 5. 【追加】部屋を出るボタンに安全なスイッチを付与
+        const leaveRoomBtn = document.getElementById('btn-leave-room');
+        if (leaveRoomBtn) {
+            leaveRoomBtn.addEventListener('click', function(e) {
+                e.preventDefault();
+                leaveRoom(); // 退室処理を実行
+            }, false);
+        }
+
         connectServer();
     });
     
@@ -668,6 +683,39 @@
             historyGrid.appendChild(itemDiv);
         });
     }
+    
+       // 💡 【追加】現在入っている部屋を抜けて、最初の画面に戻る関数
+    function leaveRoom() {
+        // クライアント側の部屋情報を初期化
+        currentRoomId = null;
+        currentPassword = null;
+        isMaster = false;
+        banOrderList = [];
+
+        // 画面の表示を最初の状態にリセット
+        document.getElementById("room-active-view").style.display = "none";
+        document.getElementById("room-setup-view").style.display = "block";
+        
+        // 入力フォームを空にする
+        document.getElementById("join-room-id").value = "";
+        document.getElementById("join-room-pass").value = "";
+
+        // BANの選択画面や履歴の描画も初期状態（未入室状態）に戻す
+        updateBanDisplay_Local();
+
+        // 💡 サーバー側へ通知して切断する必要は特別ありません。
+        // なぜなら、次に「部屋を作る」や「部屋に入る」を押した際に、
+        // サーバー側が自動的に「新しい部屋番号」で上書きしてくれる設計になっているためです。
+        // もし完全にWebSocketごと繋ぎ直したい場合は、一度サーバーを切り直します。
+        if (ws && ws.readyState === WebSocket.OPEN) {
+            // 安全のため、一度通信を閉じて接続し直すことで、サーバー側の滞在人数カウント（wss.clients）を即座に減らします
+            ws.close();
+            connectServer();
+        }
+
+        setSystemMessage("部屋を退室しました。別の部屋番号を入力するか、新しく作成してください。", true);
+    }
+    
     </script>
 </body>
 </html>
