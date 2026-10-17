@@ -439,13 +439,21 @@
             try {
                 const data = JSON.parse(event.data);
                 
-                if (data.type === "ROOM_CREATED") {
+                if (data.type === "CREATE_ROOM") {
                     currentRoomId = data.roomId;
                     currentPassword = data.password;
                     isMaster = true;
                     showActiveRoom("操作マスター");
-                    // 💡 alertを廃止し、画面上部に案内を出す
-                    setSystemMessage(`部屋を作成しました！ 部屋番号: ${data.roomId} / パスワード: ${data.password}`, true);
+                    // 💡 アラートを完全に廃止し、画面上のメッセージエリアに部屋情報を表示します
+                    setSystemMessage(`🎉 部屋を作成しました！ 部屋番号: ${data.roomId} | パスワード: ${data.password}`, true);
+                } 
+                else if (data.type === "ROOM_CREATED") {
+                    currentRoomId = data.roomId;
+                    currentPassword = data.password;
+                    isMaster = true;
+                    showActiveRoom("操作マスター");
+                    // 💡 サーバーの仕様（CREATE_ROOM / ROOM_CREATED）の表記ブレに対応するため両方に記述
+                    setSystemMessage(`🎉 部屋を作成しました！ 部屋番号: ${data.roomId} | パスワード: ${data.password}`, true);
                 } 
                 else if (data.type === "ROOM_JOINED") {
                     currentRoomId = data.roomId;
@@ -455,14 +463,14 @@
                     
                     banOrderList = data.bannedLegends || [];
                     updateBanDisplay_Local();
-                    setSystemMessage("部屋に入室しました。", true);
+                    setSystemMessage(`🚪 部屋番号 ${data.roomId} に入室しました。`, true);
                 }
                 else if (data.type === "UPDATE_BAN_STATE") {
                     banOrderList = data.bannedLegends || [];
                     updateBanDisplay_Local();
                 }
                 else if (data.type === "ERROR") {
-                    setSystemMessage(data.message);
+                    setSystemMessage(`❌ エラー: ${data.message}`);
                 }
             } catch (e) {
                 console.error("データ処理中にエラーが発生しました:", e);
