@@ -250,8 +250,9 @@
     <div id="room-setup-view">
         <div class="room-guide-text" style="font-size: 12px; color: #b9bbbe; line-height: 1.6; margin-bottom: 12px; border-left: 3px solid #ff4e4e; padding-left: 8px; text-align: left;">
             ※ <strong>新しく部屋を作る</strong>と、自分だけがBAN操作を行える「マスター」になります。<br>
-            ※ 友達の部屋に<strong>パスワードを入力して入る</strong>と、一緒にBAN操作が可能です。<br>
-            ※ 部屋番号だけを入力し、<strong>パスワードを空欄で入る</strong>と「観戦専用（閲覧のみ）」として入室できます。
+            ※ 友達の部屋に<strong>パスワードを入力して入る</strong>と、その方も「マスター」となり同部屋内でBAN状況を共有しつつ一緒にBAN操作が可能です。<br>
+            ※ 部屋番号だけを入力し、<strong>パスワードを空欄で入る</strong>と「閲覧のみ」として入室でき、BAN操作は不可の状態でマスターの入力内容を共有できます。(パスワードを間違えた場合も同様となります)<br>
+            (部屋の作成者は使用用途に応じて、「部屋番号とパスワードの両方」か「部屋番号のみ」のいずれかを共有したい方にお伝えください)
         </div>
 
         <button class="room-btn" type="button" id="btn-create-room">新しい部屋を作る</button>
@@ -482,7 +483,7 @@
                     isMaster = true;
                     showActiveRoom("操作マスター");
                     // 💡 アラートを完全に廃止し、画面上のメッセージエリアに部屋情報を表示します
-                    setSystemMessage(`🎉 部屋を作成しました！ 部屋番号: ${data.roomId} | パスワード: ${data.password}`, true);
+                    setSystemMessage(`🎉 部屋を作成しました！ 部屋番号: ${data.roomId}`, true);
                 } 
                 else if (data.type === "ROOM_CREATED") {
                     currentRoomId = data.roomId;
@@ -490,7 +491,7 @@
                     isMaster = true;
                     showActiveRoom("操作マスター");
                     // 💡 サーバーの仕様（CREATE_ROOM / ROOM_CREATED）の表記ブレに対応するため両方に記述
-                    setSystemMessage(`🎉 部屋を作成しました！ 部屋番号: ${data.roomId} | パスワード: ${data.password}`, true);
+                    setSystemMessage(`🎉 部屋を作成しました！ 部屋番号: ${data.roomId}`, true);
                 } 
                 else if (data.type === "ROOM_JOINED") {
                     currentRoomId = data.roomId;
@@ -533,7 +534,7 @@
 
         if (ws && ws.readyState === WebSocket.CONNECTING) {
             // 💡 アナウンスを画面表示に切り替え
-            setSystemMessage("現在サーバーを起動中です(最大1分)。このままもうしばらくお待ちいただき、再度お試しください。");
+            setSystemMessage("現在サーバーを起動中です(最大1分)。このままもうしばらくお待ちください(接続処理中)。");
             
             if (!connectionTimeout) {
                 connectionTimeout = setTimeout(function() {
