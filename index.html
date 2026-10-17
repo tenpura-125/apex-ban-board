@@ -393,14 +393,36 @@
         connectServer();
     });
 
-    // サーバーとの通信を確立する関数
+    // サーバーとの通信を確立する関数（Discordアクティビティ対応版）
     function connectServer() {
-        ws = new WebSocket("wss://apex-ban-board-server.onrender.com");
+        let wsUrl = "wss://apex-ban-board-server.onrender.com";
+
+        // 一部のモバイル版Discord等に対応するため、window.location全体をチェックするように強化
+        const isDiscordActivity = window.location.hostname.includes("discordsays.com") || 
+                                  window.location.search.includes("instance_id") ||
+                                  window.location.search.includes("frame_id");
+
+        if (isDiscordActivity) {
+            // Discord環境の場合：現在の場所（https）を wss ベースに変換し、マッピングしたパスを繋ぐ
+            const protocol = window.location.protocol === "https:" ? "wss:" : "ws:";
+            // 「/.proxy/設定したPREFIX」の形にする
+            wsUrl = `${protocol}//${window.location.host}/.proxy/websocket-server`;
+            console.log("🎮 Discordアクティビティ環境を検出。プロキシ経由で接続します:", wsUrl);
+        } else {
+            console.log("🌐 通常のブラウザ環境を検出。直接接続します:", wsUrl);
+        }
+
+ 
+        try {
+            ws = new WebSocket(wsUrl);
+        } catch (error) {
+            console.error("WebSocketの初期化に失敗しました:", error);
+            return;
+        }
 
         // 💡 接続が成功したとき（Renderが起きたとき）
         ws.onopen = function() {
             console.log("サーバーへの接続に成功しました。");
-            // もしエラー通知などで文言を書き換えていた場合の初期化などをここで行えます
         };
 
         ws.onmessage = function(event) {
@@ -416,7 +438,7 @@
                 } 
                 else if (data.type === "ROOM_JOINED") {
                     currentRoomId = data.roomId;
-                    currentPassword = data.inputPassword || currentPassword; // パスワードを維持
+                    currentPassword = data.inputPassword || currentPassword;
                     isMaster = data.isMaster;
                     showActiveRoom(isMaster ? "操作マスター" : "閲覧専用（観戦）");
                     
@@ -424,7 +446,6 @@
                     updateBanDisplay_Local();
                 }
                 else if (data.type === "UPDATE_BAN_STATE") {
-                    // 最新のBANリストを受け取って再描画
                     banOrderList = data.bannedLegends || [];
                     updateBanDisplay_Local();
                 }
@@ -440,6 +461,7 @@
             console.log("サーバーとの通信が切断されました。再接続を試みてください。");
         };
     }
+
 
     // 💡 サーバーの接続状態をチェックし、スリープ時のアナウンスと誘導を行う補助関数
     function checkServerConnection() {
