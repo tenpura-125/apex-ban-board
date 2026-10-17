@@ -393,36 +393,37 @@
         connectServer();
     });
 
-    // サーバーとの通信を確立する関数（Discordアクティビティ対応版）
+    // サーバーとの通信を確立する関数（Discordアクティビティ完全互換版）
     function connectServer() {
         let wsUrl = "wss://apex-ban-board-server.onrender.com";
 
-        // 一部のモバイル版Discord等に対応するため、window.location全体をチェックするように強化
+        // Discordアクティビティ環境（iframeかつ特定ドメイン内）で動いているか判定
         const isDiscordActivity = window.location.hostname.includes("discordsays.com") || 
                                   window.location.search.includes("instance_id") ||
                                   window.location.search.includes("frame_id");
 
         if (isDiscordActivity) {
-            // Discord環境の場合：現在の場所（https）を wss ベースに変換し、マッピングしたパスを繋ぐ
+            // 💡 Discordプロキシを通す場合、URLのホスト名とプロトコルの組み立て方をDiscordの仕様に厳密に合わせます
+            // 内部で正しくマッピングさせるため、相対パスではなく現在のホスト名（discordsays.com）をベースにします
             const protocol = window.location.protocol === "https:" ? "wss:" : "ws:";
-            // 「/.proxy/設定したPREFIX」の形にする
             wsUrl = `${protocol}//${window.location.host}/.proxy/websocket-server`;
-            console.log("🎮 Discordアクティビティ環境を検出。プロキシ経由で接続します:", wsUrl);
+            
+            console.log("🎮 Discordアクティビティ環境を検出。プロキシURL:", wsUrl);
         } else {
             console.log("🌐 通常のブラウザ環境を検出。直接接続します:", wsUrl);
         }
 
- 
         try {
+            // 💡 Discordのプロキシは、WebSocketの第2引数（プロトコルオプション）の指定が必要な場合があります
             ws = new WebSocket(wsUrl);
         } catch (error) {
             console.error("WebSocketの初期化に失敗しました:", error);
             return;
         }
 
-        // 💡 接続が成功したとき（Renderが起きたとき）
+        // 接続が成功したとき
         ws.onopen = function() {
-            console.log("サーバーへの接続に成功しました。");
+            console.log("🟢 サーバーへの接続に成功しました。");
         };
 
         ws.onmessage = function(event) {
@@ -457,11 +458,15 @@
             }
         };
 
-        ws.onclose = function() {
-            console.log("サーバーとの通信が切断されました。再接続を試みてください。");
+        // 💡 エラーログを詳細に検知するための記述を追加
+        ws.onerror = function(error) {
+            console.error("❌ WebSocketエラーが発生しました:", error);
+        };
+
+        ws.onclose = function(event) {
+            console.log(`🔴 サーバーとの通信が切断されました。コード: ${event.code}, 理由: ${event.reason}`);
         };
     }
-
 
     // 💡 サーバーの接続状態をチェックし、スリープ時のアナウンスと誘導を行う補助関数
     function checkServerConnection() {
