@@ -246,25 +246,25 @@
     <h1>APEX LEGENDS BAN/PICK BOARD</h1>
 
     <div class="room-manager">
-        <div id="room-setup-view">
-            <button class="room-btn" type="button" onclick="createRoom()">新しい部屋を作る</button>
-            <span style="margin: 0 10px; color: #555;">または</span>
-            <input type="text" id="join-room-id" placeholder="部屋番号 (1-9999)">
-            <input type="password" id="join-room-pass" placeholder="パスワード">
-            <button class="room-btn" type="button" onclick="joinRoom()">部屋に入る</button>
-        </div>
+       <div id="room-setup-view">
+        <!-- 💡 onclickを削除し、id="btn-create-room" を追加 -->
+        <button class="room-btn" type="button" id="btn-create-room">新しい部屋を作る</button>
+        <span style="margin: 0 10px; color: #555;">または</span>
+        <input type="text" id="join-room-id" placeholder="部屋番号 (1-9999)">
+        <input type="password" id="join-room-pass" placeholder="パスワード">
+        <!-- 💡 onclickを削除し、id="btn-join-room" を追加 -->
+        <button class="room-btn" type="button" id="btn-join-room">部屋に入る</button>
+       </div>
 
-        
-        <div id="room-active-view" style="display: none;">
-            現在の部屋: <span id="current-room-display" style="color: #ff4e4e; font-weight: bold; margin-right: 15px;">-</span>
-            <!-- 【追加】部屋を作った本人にだけ表示されるパスワード枠 -->
-            <span id="master-password-area" style="display: none; margin-right: 15px;">
-                パスワード: <span id="current-pass-display" style="color: #ffb84d; font-weight: bold;">-</span>
-            </span>
-            権限: <span id="current-role-display" style="font-weight: bold;">閲覧専用</span>
-        </div>
+       <div id="room-active-view" style="display: none;">
+        現在の部屋: <span id="current-room-display" style="color: #ff4e4e; font-weight: bold; margin-right: 15px;">-</span>
+        <span id="master-password-area" style="display: none; margin-right: 15px;">
+            パスワード: <span id="current-pass-display" style="color: #ffb84d; font-weight: bold;">-</span>
+        </span>
+        権限: <span id="current-role-display" style="font-weight: bold;">閲覧専用</span>
+       </div>
     </div>
-    
+
     <div id="error-message-area" style="color: #ff4d4d; font-weight: bold; margin: 10px 0; min-height: 20px;"></div>
         
     <!-- 現在のBAN数表示エリア -->
@@ -374,26 +374,48 @@
     let connectionTimeout; 
     const FALLBACK_SITE_URL = "https://github.io";
 
-    // ページが読み込まれたら一度だけ実行
+   // ページが読み込まれたら一度だけ実行
     document.addEventListener("DOMContentLoaded", function() {
+        // 1. すべてのキャラクターカードにクリックのスイッチを付与
         const cards = document.querySelectorAll('.character-card');
         cards.forEach(function(card) {
-            card.addEventListener('click', function() {
+            card.addEventListener('click', function(e) {
+                e.preventDefault(); // Discord内の予期せぬ誤動作を防止
                 toggleBan(this);
-            });
+            }, false);
         });
 
+        // 2. リセットボタンにスイッチを付与
         const resetBtn = document.getElementById('reset-btn');
         if (resetBtn) {
-            resetBtn.addEventListener('click', function() {
+            resetBtn.addEventListener('click', function(e) {
+                e.preventDefault();
                 resetAllBans();
-            });
+            }, false);
+        }
+
+        // 3. 💡 新しい部屋を作るボタンに安全なスイッチを付与（Discord CSP対策）
+        const createRoomBtn = document.getElementById('btn-create-room');
+        if (createRoomBtn) {
+            createRoomBtn.addEventListener('click', function(e) {
+                e.preventDefault(); // ボタン押下によるiframe内のリロードやバグを完全に防止
+                createRoom();
+            }, false);
+        }
+
+        // 4. 💡 部屋に入るボタンに安全なスイッチを付与（Discord CSP対策）
+        const joinRoomBtn = document.getElementById('btn-join-room');
+        if (joinRoomBtn) {
+            joinRoomBtn.addEventListener('click', function(e) {
+                e.preventDefault();
+                joinRoom();
+            }, false);
         }
 
         // 自動的にサーバーへ接続を開始
         connectServer();
     });
-
+    
     // 💡 画面上に安全にメッセージを表示する補助関数（alertの代わり）
     function setSystemMessage(text, isSuccess = false) {
         const errArea = document.getElementById("error-message-area");
