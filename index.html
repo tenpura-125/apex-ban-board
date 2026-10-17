@@ -367,6 +367,10 @@
     let isMaster = false;
     let banOrderList = [];
 
+    // 💡 サーバー起動・接続監視用の変数
+    let connectionTimeout; 
+    const FALLBACK_SITE_URL = "https://tenpura-125.github.io/apex-ban-tool/";
+
     // ページが読み込まれたら一度だけ実行
     document.addEventListener("DOMContentLoaded", function() {
         // すべてのキャラクターカードにクリックのスイッチを付与
@@ -392,6 +396,12 @@
     // サーバーとの通信を確立する関数
     function connectServer() {
         ws = new WebSocket("wss://apex-ban-board-server.onrender.com");
+
+        // 💡 接続が成功したとき（Renderが起きたとき）
+        ws.onopen = function() {
+            console.log("サーバーへの接続に成功しました。");
+            // もしエラー通知などで文言を書き換えていた場合の初期化などをここで行えます
+        };
 
         ws.onmessage = function(event) {
             try {
@@ -431,15 +441,49 @@
         };
     }
 
+    // 💡 サーバーの接続状態をチェックし、スリープ時のアナウンスと誘導を行う補助関数
+    function checkServerConnection() {
+        // すでに接続が確立されている場合はTrueを返して終了
+        if (ws && ws.readyState === WebSocket.OPEN) {
+            return true;
+        }
+
+        // 接続中（CONNECTING = 0）の場合、Renderがスリープから復帰中の可能性が高い
+        if (ws && ws.readyState === WebSocket.CONNECTING) {
+            alert("現在サーバーに接続中です。\nRenderサーバーがスリープしている可能性があるため、起動までに最大1分ほどかかる場合があります。このままもうしばらくお待ちいただき、1分後に再度お試しください。");
+            
+            // まだタイマーがセットされていなければ、60秒後のスタンドアロン誘導タイマーを起動
+            if (!connectionTimeout) {
+                connectionTimeout = setTimeout(function() {
+                    // 60秒経ってもまだ接続できていない場合、別サイトへの誘導ダイアログを出す
+                    if (!ws || ws.readyState !== WebSocket.OPEN) {
+                        const userChoice = confirm("1分以上経過しましたがサーバーが起動しないか、通信エラーが発生しています。\n\n同期機能はありませんが、この端末のみでBAN/PICKを行える「オフライン版サイト」へ移動しますか？");
+                        if (userChoice) {
+                            window.location.href = FALLBACK_SITE_URL;
+                        }
+                    }
+                }, 60000); // 60秒（1分）
+            }
+            return false;
+        }
+
+        // 完全切断、または未接続状態（CLOSED / CLOSING）の場合は再接続を促す
+        alert("サーバーに接続されていません。ページを再読み込みして再接続を試みてください。");
+        connectServer(); // 自動的に再接続を試みる
+        return false;
+    }
+
     // 部屋作成リクエスト
     function createRoom() {
-        if (!ws || ws.readyState !== WebSocket.OPEN) return alert("サーバーに接続されていません");
+        // 💡 共通の接続チェック関数を通す
+        if (!checkServerConnection()) return;
         ws.send(JSON.stringify({ type: "CREATE_ROOM" }));
     }
 
     // 部屋入室リクエスト
     function joinRoom() {
-        if (!ws || ws.readyState !== WebSocket.OPEN) return alert("サーバーに接続されていません");
+        // 💡 共通の接続チェック関数を通す
+        if (!checkServerConnection()) return;
         const roomId = document.getElementById("join-room-id").value;
         const password = document.getElementById("join-room-pass").value;
         
@@ -477,6 +521,9 @@
         // マスター以外のいたずらクリックはフロント側でも即座にブロック
         if (!isMaster) return;
 
+        // 万が一途中でサーバーが切断された場合の安全弁
+        if (!ws || ws.readyState !== WebSocket.OPEN) return alert("サーバーとの接続が切断されています。");
+
         const imgElement = element.querySelector('img');
         const legendAlt = imgElement ? imgElement.getAttribute('alt') : element.innerText;
 
@@ -491,6 +538,7 @@
     // リセット送信
     function resetAllBans() {
         if (!currentRoomId || !isMaster) return;
+        if (!ws || ws.readyState !== WebSocket.OPEN) return alert("サーバーとの接続が切断されています。");
 
         ws.send(JSON.stringify({
             type: "RESET_BANS",
