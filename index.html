@@ -384,6 +384,11 @@
     // 💡 【追加】生存信号（Ping）の定期実行を管理するタイマー変数
     let pingInterval = null;
 
+    // 現在時刻を [HH:MM:SS] 形式で取得する補助関数
+    function getTimeStr() {
+        return new Date().toLocaleTimeString('ja-JP')};
+
+
     // 💡 サーバー起動・接続監視用の変数
     let connectionTimeout; 
     const FALLBACK_SITE_URL = "https://github.io";
@@ -475,14 +480,17 @@
             console.log("🟢 サーバーへの接続に成功しました。");
             setSystemMessage("サーバーに接続しました。部屋を作成するか、入室してください。", true);
 
-            // 💡 【追加】接続成功時、5分（300,000ミリ秒）ごとにサーバーへPINGを送るタイマーを起動
+            // テスト用に1分（60,000ミリ秒）ごとにPINGを送信
             if (pingInterval) clearInterval(pingInterval);
             pingInterval = setInterval(function() {
                 if (ws && ws.readyState === WebSocket.OPEN) {
-                    ws.send(JSON.stringify({ type: "PING" }));
-                    console.log("📡 スリープ防止用の生存信号(PING)を送信しました。");
+                    const now = getTimeStr();
+                    ws.send(JSON.stringify({ type: "PING", sentAt: now }));
+                    console.log(`[${now}] 📡 PING送信完了`);
+                } else {
+                    console.warn(`[${getTimeStr()}] ⚠️ PING送信スキップ (状態: ${ws ? ws.readyState : 'null'})`);
                 }
-            }, 300000); // 5分ごと
+            }, 60000); // テストのため1分ごとに設定（確認後は 300000 に戻してください）
         };
 
         ws.onmessage = function(event) {
@@ -533,8 +541,14 @@
         };
 
         ws.onclose = function(event) {
-            console.log(`🔴 サーバーとの通信が切断されました。コード: ${event.code}`);
-            setSystemMessage("サーバーとの接続が切断されました。再読み込みしてください。");
+            // 切断コードと理由を詳細に出力
+            console.log(`[${getTimeStr()}] 🔴 通信切断 | コード: ${event.code} | 理由: ${event.reason || 'なし'} | 正常終了か: ${event.wasClean}`);
+            setSystemMessage(`サーバーとの接続が切断されました。(コード: ${event.code})`);
+            
+            if (pingInterval) {
+                clearInterval(pingInterval);
+                pingInterval = null;
+            }
         };
     }
 
