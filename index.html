@@ -381,6 +381,9 @@
     let isMaster = false;
     let banOrderList = [];
 
+    // 💡 【追加】生存信号（Ping）の定期実行を管理するタイマー変数
+    let pingInterval = null;
+
     // 💡 サーバー起動・接続監視用の変数
     let connectionTimeout; 
     const FALLBACK_SITE_URL = "https://github.io";
@@ -471,6 +474,15 @@
         ws.onopen = function() {
             console.log("🟢 サーバーへの接続に成功しました。");
             setSystemMessage("サーバーに接続しました。部屋を作成するか、入室してください。", true);
+
+            // 💡 【追加】接続成功時、5分（300,000ミリ秒）ごとにサーバーへPINGを送るタイマーを起動
+            if (pingInterval) clearInterval(pingInterval);
+            pingInterval = setInterval(function() {
+                if (ws && ws.readyState === WebSocket.OPEN) {
+                    ws.send(JSON.stringify({ type: "PING" }));
+                    console.log("📡 スリープ防止用の生存信号(PING)を送信しました。");
+                }
+            }, 300000); // 5分ごと
         };
 
         ws.onmessage = function(event) {
